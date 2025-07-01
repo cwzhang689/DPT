@@ -6,6 +6,7 @@ import torch.optim as optim
 import time
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from src.eval_metrics import *
+import matplotlib.pyplot as plt
 
 def initiate(hyp_params, train_loader, valid_loader, test_loader):
     if hyp_params.pretrained_model is not None:
@@ -37,6 +38,14 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
     criterion = settings["criterion"]
     scheduler = settings["scheduler"]
 
+    # 初始化空的列表来记录训练和验证损失
+    train_losses = []
+    val_losses = []
+
+        # 记录最好的验证损失和对应的 epoch
+    best_valid_loss = float('inf')  # 确保初始化为一个很大的数
+    best_epoch = -1  # 记录最佳 epoch
+    
     def train(model, optimizer, criterion):
         model.train()
         num_batches = hyp_params.n_train // hyp_params.batch_size
@@ -52,7 +61,6 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         for i_batch, (batch_X, batch_Y, missing_mod) in enumerate(train_loader):
             text, audio, vision = batch_X
             eval_attr = batch_Y.squeeze(-1)
-            
 
             # 将数据迁移到GPU（如果使用GPU）
             if hyp_params.use_cuda:
@@ -132,6 +140,18 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         return avg_loss, results, truths
 
     best_valid = 1e8
+    # 初始化画图
+    plt.ion()  # 开启交互模式
+    fig, ax = plt.subplots()
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Loss")
+    ax.set_title("Training and Validation Loss")
+
+    # 创建两条曲线：训练和验证损失
+    train_line, = ax.plot([], [], label="Train Loss")
+    val_line, = ax.plot([], [], label="Validation Loss")
+    ax.legend()
+
     for epoch in range(1, hyp_params.num_epochs + 1):
         start = time.time()
         train(model, optimizer, criterion)
@@ -139,22 +159,36 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         val_loss, _, _ = evaluate(model, criterion, test=False)
         test_loss, _, _ = evaluate(model, criterion, test=True)
 
+        # 记录训练和验证损失
+        train_losses.append(val_loss)  # 使用验证损失作为训练损失的代表
+        val_losses.append(test_loss)
+
+        # 如果当前验证损失小于最好的验证损失，更新最佳验证损失和对应的 epoch
+        if val_loss < best_valid_loss:
+            best_valid_loss = val_loss
+            best_epoch = epoch
+
+        # 动态更新图像
+        train_line.set_xdata(range(1, epoch + 1))
+        train_line.set_ydata(train_losses)
+        val_line.set_xdata(range(1, epoch + 1))
+        val_line.set_ydata(val_losses)
+
+        ax.relim()  # 重新计算数据范围
+        ax.autoscale_view(True, True, True)  # 自动缩放视图
+
+        plt.draw()  # 绘制更新后的图形
+        plt.pause(0.1)  # 暂停0.1秒，显示图像
+
         end = time.time()
         duration = end - start
         scheduler.step(val_loss)
 
         print("-" * 50)
-        print(
-            "Epoch {:2d} | Time {:5.4f} sec | Valid Loss {:5.4f} | Test Loss {:5.4f}".format(
-                epoch, duration, val_loss, test_loss
-            )
-        )
+        print(f"Epoch {epoch} | Time {duration:.4f} sec | Valid Loss {val_loss:.4f} | Test Loss {test_loss:.4f}")
         print("-" * 50)
 
-        if val_loss < best_valid:
-            print(f"Saved model at {hyp_params.name}")
-            torch.save(model, hyp_params.name)
-            best_valid = val_loss
+    print(f"Best validation loss occurred at epoch {best_epoch} with loss: {best_valid_loss:.4f}")
 
     model = torch.load(hyp_params.name)
     _, results, truths = evaluate(model, criterion, test=False)
@@ -167,3 +201,8 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         eval_iemocap(results, truths)
     elif hyp_params.dataset == "sims":
         eval_sims(results, truths)
+
+    # 关闭交互模式并保存图像
+    plt.ioff()  # 关闭交互模式
+    plt.savefig('dynamic_loss_curve.png')  # 保存图像到文件
+    plt.show()  # 显示最终图像
