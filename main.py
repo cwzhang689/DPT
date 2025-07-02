@@ -43,7 +43,7 @@ parser.add_argument(
 )
 parser.add_argument("--relu_dropout", type=float, default=0.1, help="relu dropout")
 parser.add_argument(
-    "--embed_dropout", type=float, default=0.25, help="embedding dropout"
+    "--embed_dropout", type=float, default=0.1#0.25, help="embedding dropout"
 )
 parser.add_argument(
     "--res_dropout", type=float, default=0.1, help="residual block dropout"
@@ -73,14 +73,14 @@ parser.add_argument("--prompt_length", type=int, default=16)
 
 # Tuning
 parser.add_argument(
-    "--batch_size", type=int, default=128, metavar="N", help="batch size"
+    "--batch_size", type=int, default=16, metavar="N", help="batch size"  # default=128 
 )
 parser.add_argument("--clip", type=float, default=0.8, help="gradient clip value")
 parser.add_argument("--lr", type=float, default=1e-3, help="initial learning rate")
 parser.add_argument("--optim", type=str, default="Adam", help="optimizer to use")
 parser.add_argument("--num_epochs", type=int, default=40, help="number of epochs")
 parser.add_argument("--when", type=int, default=10, help="when to decay learning rate")
-parser.add_argument("--drop_rate", type=float, default=0.6)
+parser.add_argument("--drop_rate", type=float, default=0.3)#0.6)
 
 # Logistics
 parser.add_argument(
