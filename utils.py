@@ -112,5 +112,3 @@ def transfer_model(new_model, pretrained, use_cuda):
         ]:
             param.requires_grad = False
     return new_model
-
-
