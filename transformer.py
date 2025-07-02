@@ -64,7 +64,11 @@ class TransformerEncoder(nn.Module):
         # embed tokens and positions
         x = self.embed_scale * x_in
         if self.embed_positions is not None:
-            x += self.embed_positions(x_in.transpose(0, 1)[:, :, 0]).transpose(0, 1)  # Add positional embedding
+            bsz, seq_len, _ = x_in.transpose(0,1).shape
+            pos_ids = torch.arange(seq_len, device=x.device).unsqueeze(0).expand(bsz, seq_len)
+            x += self.embed_positions(pos_ids).transpose(0,1)
+
+            #x += self.embed_positions(x_in.transpose(0, 1)[:, :, 0]).transpose(0, 1)  # Add positional embedding
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         if x_in_k is not None and x_in_v is not None:
