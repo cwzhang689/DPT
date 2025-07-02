@@ -1,13 +1,14 @@
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
 
+best_valid_loss = float('inf')
+best_epoch = -1
 
 def multiclass_acc(preds, truths):
     """
-    Compute the multiclass accuracy w.r.t. groundtruth
-
-    :param preds: Float array representing the predictions, dimension (N,)
-    :param truths: Float/int array representing the groundtruth classes, dimension (N,)
+    Compute the multiclass accuracy with respect to the ground truth
+    : param preds: Float array representing the predictions, dimension (N,)
+    : param truths: Float/int array representing the groundtruth classes, dimension (N,)
     :return: Classification accuracy
     """
     return np.sum(np.round(preds) == np.round(truths)) / float(len(truths))
@@ -25,6 +26,7 @@ def weighted_accuracy(test_preds_emo, test_truth_emo):
 
 
 def eval_mosei_senti(results, truths, exclude_zero=False):
+    global best_valid_loss, best_epoch
     test_preds = results.view(-1).cpu().detach().numpy()
     test_truth = truths.view(-1).cpu().detach().numpy()
 
@@ -36,19 +38,31 @@ def eval_mosei_senti(results, truths, exclude_zero=False):
     test_truth_a5 = np.clip(test_truth, a_min=-2., a_max=2.)
 
     mae = np.mean(np.absolute(test_preds - test_truth))  # Average L1 distance between preds and truths
+    mse = mean_squared_error(test_truth, test_preds)  # Mean Squared Error
+    rse = np.sqrt(np.sum((test_preds - test_truth) ** 2) / np.sum((test_truth - np.mean(test_truth)) ** 2))  # Relative Squared Error
     corr = np.corrcoef(test_preds, test_truth)[0][1]
     mult_a7 = multiclass_acc(test_preds_a7, test_truth_a7)
     mult_a5 = multiclass_acc(test_preds_a5, test_truth_a5)
     f_score = f1_score((test_preds[non_zeros] > 0), (test_truth[non_zeros] > 0), average='weighted')
     binary_truth = (test_truth[non_zeros] > 0)
     binary_preds = (test_preds[non_zeros] > 0)
-
+    acc2 = accuracy_score(binary_truth, binary_preds)
+    # 更新最佳验证损失
+    if train_losses_ is not None:
+        if loss < best_valid_loss:
+            best_valid_loss = current_loss
+            best_epoch = epoch
+    # Print all requested metrics
     print("MAE: ", mae)
+    print("MSE: ", mse)  # New addition
+    print("RSE: ", rse)  # New addition
     print("Correlation Coefficient: ", corr)
     print("mult_acc_7: ", mult_a7)
     print("mult_acc_5: ", mult_a5)
+    print("mult_acc_2 (binary acc): ", accuracy_score(binary_truth, binary_preds))  # New addition
     print("F1 score: ", f_score)
-    print("Accuracy: ", accuracy_score(binary_truth, binary_preds))
+    print("Accuracy (Acc2): ", acc2)
+    print(f"Best validation loss: {best_valid_loss} at epoch {best_epoch}")
 
 
 def eval_mosi(results, truths, exclude_zero=False):
@@ -89,6 +103,3 @@ def eval_sims(results, truths, exclude_zero=False):
     print("mult_acc_5: ", mult_a5)
     print("F1 score: ", f_score)
     print("Accuracy: ", acc2)
-
-
-
