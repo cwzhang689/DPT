@@ -45,7 +45,7 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         # 记录最好的验证损失和对应的 epoch
     best_valid_loss = float('inf')  # 确保初始化为一个很大的数
     best_epoch = -1  # 记录最佳 epoch
-    
+
     def train(model, optimizer, criterion):
         model.train()
         num_batches = hyp_params.n_train // hyp_params.batch_size
@@ -167,6 +167,7 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         if val_loss < best_valid_loss:
             best_valid_loss = val_loss
             best_epoch = epoch
+            torch.save(model, hyp_params.name)  # 添加保存
 
         # 动态更新图像
         train_line.set_xdata(range(1, epoch + 1))
